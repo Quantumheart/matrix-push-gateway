@@ -1,0 +1,12 @@
+services:
+  matrix-push-gateway:
+    build: .
+    container_name: matrix-push-gateway
+    restart: unless-stopped
+    env_file: .env
+    networks:
+      - traefik
+
+networks:
+  traefik:
+    external: true
