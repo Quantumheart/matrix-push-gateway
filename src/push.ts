@@ -55,7 +55,7 @@ function decodePushkey(pushkey: string): PushSubscription {
     }
     return parsed as PushSubscription;
   } catch {
-    throw new Error(`Invalid pushkey — expected JSON PushSubscription: ${pushkey.slice(0, 80)}`);
+    throw new Error("Invalid pushkey — expected JSON PushSubscription");
   }
 }
 
@@ -131,8 +131,7 @@ export async function sendNotification(
   for (const r of results) {
     if (!r.ok) {
       console.warn(
-        `[push] delivery failed pushkey=${r.pushkey.slice(0, 32)}… ` +
-          `status=${r.statusCode} err=${r.error}`,
+        `[push] delivery failed status=${r.statusCode} err=${r.error}`,
       );
       // 404 / 410 → subscription is dead, tell the homeserver to drop it
       if (r.statusCode === 404 || r.statusCode === 410) {

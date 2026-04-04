@@ -39,6 +39,6 @@ router.all("/_matrix/*", (req: Request, res: Response) => {
   const code = req.method === "POST" || req.method === "GET" ? 404 : 405;
   res.status(code).json({
     errcode: "M_UNRECOGNIZED",
-    error: `Unrecognized request: ${req.method} ${req.path}`,
+    error: "Unrecognized request",
   });
 });
