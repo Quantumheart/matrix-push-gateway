@@ -82,7 +82,7 @@ export async function sendToDevice(
     return { pushkey: device.pushkey, ok: false, error: String(err) };
   }
 
-  const payload = JSON.stringify(buildPayload(notification));
+  const payload = JSON.stringify({ notification: buildPayload(notification) });
   const urgency = notification.prio === "low" ? "low" : "high";
 
   try {
