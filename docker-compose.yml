@@ -5,8 +5,8 @@ services:
     restart: unless-stopped
     env_file: .env
     networks:
-      - traefik
+      - matrix-internal
 
 networks:
-  traefik:
-    external: true
+  matrix-internal:
+    name: matrix-internal
