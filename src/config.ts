@@ -21,4 +21,7 @@ export const config = {
 
   /** Time-to-live for push messages (seconds). Default 4 hours. */
   pushTtlSeconds: parseInt(process.env["PUSH_TTL_SECONDS"] ?? "14400", 10),
+
+  /** How long (ms) to remember event IDs for duplicate suppression. Default 10 minutes. */
+  dedupTtlMs: parseInt(process.env["DEDUP_TTL_MS"] ?? "600000", 10),
 } as const;
