@@ -4,6 +4,8 @@ services:
     container_name: matrix-push-gateway
     restart: unless-stopped
     env_file: .env
+    volumes:
+      - ./apns.p8:/app/apns.p8:ro
     networks:
       - matrix-internal
 

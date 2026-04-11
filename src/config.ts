@@ -6,7 +6,46 @@ function requireEnv(name: string): string {
   return value;
 }
 
-export const config = {
+function optionalEnv(name: string): string | undefined {
+  return process.env[name] || undefined;
+}
+
+// ── APNs config ──────────────────────────────────────────────────────
+
+export interface ApnsConfig {
+  keyPath:  string;
+  keyId:    string;
+  teamId:   string;
+  bundleId: string;
+}
+
+function resolveApnsConfig(): ApnsConfig | null {
+  const keyPath  = optionalEnv("APNS_KEY_PATH");
+  const keyId    = optionalEnv("APNS_KEY_ID");
+  const teamId   = optionalEnv("APNS_TEAM_ID");
+  const bundleId = optionalEnv("APNS_BUNDLE_ID");
+
+  if (!keyPath || !keyId || !teamId || !bundleId) {
+    console.warn("[config] APNs env vars missing — native iOS push disabled");
+    return null;
+  }
+
+  return { keyPath, keyId, teamId, bundleId };
+}
+
+// ── Config ───────────────────────────────────────────────────────────
+
+const apns: ApnsConfig | null = resolveApnsConfig();
+
+export const config: {
+  port: number;
+  vapidSubject: string;
+  vapidPublicKey: string;
+  vapidPrivateKey: string;
+  pushTtlSeconds: number;
+  dedupTtlMs: number;
+  apns: ApnsConfig | null;
+} = {
   /** Port the HTTP server listens on */
   port: parseInt(process.env["PORT"] ?? "7002", 10),
 
@@ -24,4 +63,6 @@ export const config = {
 
   /** How long (ms) to remember event IDs for duplicate suppression. Default 10 minutes. */
   dedupTtlMs: parseInt(process.env["DEDUP_TTL_MS"] ?? "600000", 10),
-} as const;
+
+  apns,
+};
