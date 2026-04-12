@@ -1,5 +1,6 @@
 import webpush, { type PushSubscription } from "web-push";
 import type { Notification, Device, PushPath } from "./schema.js";
+import { getContentBody } from "./schema.js";
 import { config } from "./config.js";
 import { isDuplicate } from "./dedup.js";
 import { sendAlertPush, sendVoipPush } from "./apns.js";
@@ -31,11 +32,7 @@ function buildPayload(notification: Notification): WebPushPayload {
     sender: notification.sender,
     sender_display_name: notification.sender_display_name,
     type: notification.type,
-    body:
-      notification.content &&
-      typeof notification.content["body"] === "string"
-        ? notification.content["body"]
-        : undefined,
+    body: getContentBody(notification),
     counts: notification.counts,
     prio: notification.prio,
   };

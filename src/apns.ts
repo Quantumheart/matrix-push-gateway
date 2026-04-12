@@ -1,64 +1,62 @@
 import apn from "@parse/node-apn";
 import { readFileSync } from "fs";
 import type { Notification, Device } from "./schema.js";
+import { getContentBody } from "./schema.js";
 import { config } from "./config.js";
 import type { SendResult } from "./push.js";
 
 // ── Provider singleton ───────────────────────────────────────────────
+// Initialized at module load so readFileSync runs once at startup, not
+// on the first incoming request.
 
-let _provider: apn.Provider | null = null;
-
-function getProvider(): apn.Provider | null {
-  if (!config.apns) return null;
-  if (_provider) return _provider;
-  const key = readFileSync(config.apns.keyPath);
-  _provider = new apn.Provider({
-    token: {
-      key,
-      keyId:  config.apns.keyId,
-      teamId: config.apns.teamId,
-    },
-    production: true,
-  });
-  return _provider;
-}
+const _provider: apn.Provider | null = config.apns
+  ? new apn.Provider({
+      token: {
+        key:    readFileSync(config.apns.keyPath),
+        keyId:  config.apns.keyId,
+        teamId: config.apns.teamId,
+      },
+      production: true,
+    })
+  : null;
 
 // ── Payload builders ─────────────────────────────────────────────────
 
 function buildBody(notification: Notification): string {
   const sender = notification.sender_display_name;
-  const body =
-    notification.content && typeof notification.content["body"] === "string"
-      ? notification.content["body"]
-      : undefined;
+  const body   = getContentBody(notification);
   if (sender && body) return `${sender}: ${body}`;
   if (sender) return sender;
   return "New message";
 }
 
-function buildAlertNotification(notification: Notification): apn.Notification {
+function expiryTimestamp(): number {
+  return Math.floor(Date.now() / 1000) + config.pushTtlSeconds;
+}
+
+function buildAlertNotification(notification: Notification, bundleId: string): apn.Notification {
   const note = new apn.Notification();
   note.pushType = "alert";
-  note.topic = config.apns!.bundleId;
+  note.topic    = bundleId;
   note.priority = 10;
-  note.expiry = Math.floor(Date.now() / 1000) + config.pushTtlSeconds;
-  note.alert = {
+  note.expiry   = expiryTimestamp();
+  note.alert    = {
     title: notification.room_name ?? notification.room_id ?? "Message",
-    body: buildBody(notification),
+    body:  buildBody(notification),
   };
-  note.badge = notification.counts?.unread ?? 0;
-  note.sound = "default";
+  note.badge   = notification.counts?.unread ?? 0;
+  note.sound   = "default";
   note.payload = { room_id: notification.room_id };
   return note;
 }
 
-function buildVoipNotification(notification: Notification): apn.Notification {
+function buildVoipNotification(notification: Notification, bundleId: string): apn.Notification {
   const note = new apn.Notification();
   note.pushType = "voip";
-  note.topic = `${config.apns!.bundleId}.voip`;
+  note.topic    = `${bundleId}.voip`;
   note.priority = 10;
-  note.expiry = Math.floor(Date.now() / 1000) + config.pushTtlSeconds;
-  note.payload = {
+  note.expiry   = expiryTimestamp();
+  note.payload  = {
     event_id:            notification.event_id,
     room_id:             notification.room_id,
     sender_display_name: notification.sender_display_name,
@@ -68,10 +66,7 @@ function buildVoipNotification(notification: Notification): apn.Notification {
 
 // ── Result mapper ────────────────────────────────────────────────────
 
-function mapApnsResponse(
-  responses: apn.Responses,
-  pushkey: string,
-): SendResult {
+function mapApnsResponse(responses: apn.Responses, pushkey: string): SendResult {
   if (responses.sent.length > 0) {
     return { pushkey, ok: true };
   }
@@ -98,38 +93,27 @@ function mapApnsResponse(
 
 // ── Send ─────────────────────────────────────────────────────────────
 
-export async function sendAlertPush(
+async function sendApnsPush(
+  build: (notification: Notification, bundleId: string) => apn.Notification,
   notification: Notification,
   device: Device,
 ): Promise<SendResult> {
-  const provider = getProvider();
-  if (!provider) {
+  if (!_provider || !config.apns) {
     return { pushkey: device.pushkey, ok: false, error: "APNs not configured" };
   }
-
   try {
-    const note = buildAlertNotification(notification);
-    const responses = await provider.send(note, device.pushkey);
+    const note      = build(notification, config.apns.bundleId);
+    const responses = await _provider.send(note, device.pushkey);
     return mapApnsResponse(responses, device.pushkey);
   } catch (err) {
     return { pushkey: device.pushkey, ok: false, error: String(err) };
   }
 }
 
-export async function sendVoipPush(
-  notification: Notification,
-  device: Device,
-): Promise<SendResult> {
-  const provider = getProvider();
-  if (!provider) {
-    return { pushkey: device.pushkey, ok: false, error: "APNs not configured" };
-  }
+export function sendAlertPush(notification: Notification, device: Device): Promise<SendResult> {
+  return sendApnsPush(buildAlertNotification, notification, device);
+}
 
-  try {
-    const note = buildVoipNotification(notification);
-    const responses = await provider.send(note, device.pushkey);
-    return mapApnsResponse(responses, device.pushkey);
-  } catch (err) {
-    return { pushkey: device.pushkey, ok: false, error: String(err) };
-  }
+export function sendVoipPush(notification: Notification, device: Device): Promise<SendResult> {
+  return sendApnsPush(buildVoipNotification, notification, device);
 }
