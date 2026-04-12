@@ -9,18 +9,31 @@ type ApnsResponses = Awaited<ReturnType<apn.Provider["send"]>>;
 
 // ── Provider singleton ───────────────────────────────────────────────
 // Initialized at module load so readFileSync runs once at startup, not
-// on the first incoming request.
+// on the first incoming request. Provider + bundleId travel together so
+// callers only need a single null check to access both.
 
-const _provider: apn.Provider | null = config.apns
-  ? new apn.Provider({
-      token: {
-        key:    readFileSync(config.apns.keyPath),
-        keyId:  config.apns.keyId,
-        teamId: config.apns.teamId,
-      },
-      production: true,
-    })
+interface ApnsRuntime {
+  provider: apn.Provider;
+  bundleId: string;
+}
+
+const _runtime: ApnsRuntime | null = config.apns
+  ? {
+      provider: new apn.Provider({
+        token: {
+          key:    readFileSync(config.apns.keyPath),
+          keyId:  config.apns.keyId,
+          teamId: config.apns.teamId,
+        },
+        production: true,
+      }),
+      bundleId: config.apns.bundleId,
+    }
   : null;
+
+export function shutdownApns(): void {
+  _runtime?.provider.shutdown();
+}
 
 // ── Payload builders ─────────────────────────────────────────────────
 
@@ -73,13 +86,9 @@ function mapApnsResponse(responses: ApnsResponses, pushkey: string): SendResult 
     return { pushkey, ok: true };
   }
 
+  // Single-token sends always populate exactly one of sent/failed.
   const failure = responses.failed[0];
-  if (!failure) {
-    return { pushkey, ok: false, error: "No sent or failed entries in APNs response" };
-  }
-
-  const reason = failure.response?.reason;
-  const status = failure.status ? parseInt(failure.status, 10) : undefined;
+  const reason  = failure.response?.reason;
 
   if (reason === "Unregistered") {
     return { pushkey, ok: false, statusCode: 410, error: reason };
@@ -88,7 +97,7 @@ function mapApnsResponse(responses: ApnsResponses, pushkey: string): SendResult 
   return {
     pushkey,
     ok: false,
-    statusCode: status,
+    statusCode: failure.status,
     error: reason ?? failure.error?.message ?? "Unknown APNs error",
   };
 }
@@ -100,14 +109,15 @@ async function sendApnsPush(
   notification: Notification,
   device: Device,
 ): Promise<SendResult> {
-  if (!_provider || !config.apns) {
+  if (!_runtime) {
     return { pushkey: device.pushkey, ok: false, error: "APNs not configured" };
   }
   try {
-    const note      = build(notification, config.apns.bundleId);
-    const responses = await _provider.send(note, device.pushkey);
+    const note      = build(notification, _runtime.bundleId);
+    const responses = await _runtime.provider.send(note, device.pushkey);
     return mapApnsResponse(responses, device.pushkey);
   } catch (err) {
+    console.warn(`[apns] send failed pushkey=${device.pushkey} err=${String(err)}`);
     return { pushkey: device.pushkey, ok: false, error: String(err) };
   }
 }
