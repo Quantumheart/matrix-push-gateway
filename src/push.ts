@@ -1,7 +1,9 @@
 import webpush, { type PushSubscription } from "web-push";
-import type { Notification, Device } from "./schema.js";
+import type { Notification, Device, PushPath } from "./schema.js";
+import { getContentBody } from "./schema.js";
 import { config } from "./config.js";
 import { isDuplicate } from "./dedup.js";
+import { sendAlertPush, sendVoipPush } from "./apns.js";
 
 // ── Payload builder ─────────────────────────────────────────────────
 
@@ -30,11 +32,7 @@ function buildPayload(notification: Notification): WebPushPayload {
     sender: notification.sender,
     sender_display_name: notification.sender_display_name,
     type: notification.type,
-    body:
-      notification.content &&
-      typeof notification.content["body"] === "string"
-        ? notification.content["body"]
-        : undefined,
+    body: getContentBody(notification),
     counts: notification.counts,
     prio: notification.prio,
   };
@@ -59,6 +57,14 @@ function decodePushkey(pushkey: string): PushSubscription {
   }
 }
 
+// ── Pushkey classifier ───────────────────────────────────────────────
+
+function classifyPushkey(pushkey: string, appId: string): PushPath {
+  if (pushkey.startsWith("{")) return "webpush";
+  if (appId.endsWith(".voip"))  return "apns-voip";
+  return "apns-alert";
+}
+
 // ── Send ────────────────────────────────────────────────────────────
 
 export interface SendResult {
@@ -75,6 +81,11 @@ export async function sendToDevice(
   notification: Notification,
   device: Device,
 ): Promise<SendResult> {
+  const path = classifyPushkey(device.pushkey, device.app_id);
+
+  if (path === "apns-alert") return sendAlertPush(notification, device);
+  if (path === "apns-voip")  return sendVoipPush(notification, device);
+
   let subscription: PushSubscription;
   try {
     subscription = decodePushkey(device.pushkey);
@@ -133,7 +144,6 @@ export async function sendNotification(
       console.warn(
         `[push] delivery failed status=${r.statusCode} err=${r.error}`,
       );
-      // 404 / 410 → subscription is dead, tell the homeserver to drop it
       if (r.statusCode === 404 || r.statusCode === 410) {
         rejected.push(r.pushkey);
       }

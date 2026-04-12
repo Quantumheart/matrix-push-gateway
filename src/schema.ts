@@ -53,3 +53,12 @@ export type Device = z.infer<typeof DeviceSchema>;
 export type Notification = z.infer<typeof NotificationSchema>;
 export type NotifyRequest = z.infer<typeof NotifyRequestSchema>;
 export type NotifyResponse = z.infer<typeof NotifyResponseSchema>;
+
+export type PushPath = "webpush" | "apns-alert" | "apns-voip";
+
+// ── Helpers ──────────────────────────────────────────────────────────
+
+export function getContentBody(notification: Notification): string | undefined {
+  const body = notification.content?.["body"];
+  return typeof body === "string" ? body : undefined;
+}
