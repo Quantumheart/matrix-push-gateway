@@ -5,6 +5,8 @@ import { getContentBody } from "./schema.js";
 import { config } from "./config.js";
 import type { SendResult } from "./push.js";
 
+type ApnsResponses = Awaited<ReturnType<apn.Provider["send"]>>;
+
 // ── Provider singleton ───────────────────────────────────────────────
 // Initialized at module load so readFileSync runs once at startup, not
 // on the first incoming request.
@@ -66,7 +68,7 @@ function buildVoipNotification(notification: Notification, bundleId: string): ap
 
 // ── Result mapper ────────────────────────────────────────────────────
 
-function mapApnsResponse(responses: apn.Responses, pushkey: string): SendResult {
+function mapApnsResponse(responses: ApnsResponses, pushkey: string): SendResult {
   if (responses.sent.length > 0) {
     return { pushkey, ok: true };
   }
