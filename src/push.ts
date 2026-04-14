@@ -81,6 +81,16 @@ export async function sendToDevice(
   notification: Notification,
   device: Device,
 ): Promise<SendResult> {
+  if (
+    notification.event_id &&
+    isDuplicate(`${notification.event_id}:${device.pushkey}`)
+  ) {
+    console.log(
+      `[push] duplicate event_id=${notification.event_id} pushkey=${device.pushkey} — skipping`,
+    );
+    return { pushkey: device.pushkey, ok: true };
+  }
+
   const path = classifyPushkey(device.pushkey, device.app_id);
 
   if (path === "apns-alert") return sendAlertPush(notification, device);
@@ -129,11 +139,6 @@ export async function sendToDevice(
 export async function sendNotification(
   notification: Notification,
 ): Promise<string[]> {
-  if (notification.event_id && isDuplicate(notification.event_id)) {
-    console.log(`[push] duplicate event_id=${notification.event_id} — skipping`);
-    return [];
-  }
-
   const results = await Promise.all(
     notification.devices.map((device) => sendToDevice(notification, device)),
   );
