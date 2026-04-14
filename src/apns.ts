@@ -62,15 +62,23 @@ function buildAlertNotification(notification: Notification, bundleId: string): a
   };
 
   if (notification.event_id) {
-    note.pushType        = "background";
-    note.priority        = 5;
+    note.pushType         = "alert";
+    note.priority         = 10;
     note.contentAvailable = true;
-    note.badge           = notification.counts?.unread ?? 0;
+    note.alert            = {
+      title: notification.room_name ?? "Lattice",
+      body:  notification.sender_display_name
+        ? `${notification.sender_display_name}: New message`
+        : "New message",
+    };
+    note.sound            = "default";
+    note.badge            = notification.counts?.unread ?? 0;
+    note.mutableContent   = true;
   } else {
-    note.pushType        = "background";
-    note.priority        = 5;
+    note.pushType         = "background";
+    note.priority         = 5;
     note.contentAvailable = true;
-    note.badge           = notification.counts?.unread ?? 0;
+    note.badge            = notification.counts?.unread ?? 0;
   }
 
   return note;
