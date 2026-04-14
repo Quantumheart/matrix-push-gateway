@@ -26,12 +26,12 @@ export interface WebPushPayload {
  */
 function buildPayload(notification: Notification): WebPushPayload {
   return {
-    event_id: notification.event_id,
-    room_id: notification.room_id,
-    room_name: notification.room_name,
-    sender: notification.sender,
-    sender_display_name: notification.sender_display_name,
-    type: notification.type,
+    event_id: notification.event_id ?? undefined,
+    room_id: notification.room_id ?? undefined,
+    room_name: notification.room_name ?? undefined,
+    sender: notification.sender ?? undefined,
+    sender_display_name: notification.sender_display_name ?? undefined,
+    type: notification.type ?? undefined,
     body: getContentBody(notification),
     counts: notification.counts,
     prio: notification.prio,
