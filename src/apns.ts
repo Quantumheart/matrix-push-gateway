@@ -62,11 +62,9 @@ function buildAlertNotification(notification: Notification, bundleId: string): a
   };
 
   if (notification.event_id) {
-    note.pushType        = "alert";
-    note.priority        = 10;
+    note.pushType        = "background";
+    note.priority        = 5;
     note.contentAvailable = true;
-    note.alert           = "New message";
-    note.sound           = "default";
     note.badge           = notification.counts?.unread ?? 0;
   } else {
     note.pushType        = "background";
