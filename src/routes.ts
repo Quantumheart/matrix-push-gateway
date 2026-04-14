@@ -10,12 +10,12 @@ router.post("/_matrix/push/v1/notify", async (req: Request, res: Response) => {
   const parsed = NotifyRequestSchema.safeParse(req.body);
 
   if (!parsed.success) {
-    res.status(400).json({
-      errcode: "M_BAD_JSON",
-      error: parsed.error.issues
-        .map((i) => `${i.path.join(".")}: ${i.message}`)
-        .join("; "),
-    });
+    const error = parsed.error.issues
+      .map((i) => `${i.path.join(".")}: ${i.message}`)
+      .join("; ");
+    console.warn(`[notify] 400 bad request: ${error}`);
+    console.warn(`[notify] body: ${JSON.stringify(req.body).substring(0, 500)}`);
+    res.status(400).json({ errcode: "M_BAD_JSON", error });
     return;
   }
 

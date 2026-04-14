@@ -51,17 +51,30 @@ function expiryTimestamp(): number {
 
 function buildAlertNotification(notification: Notification, bundleId: string): apn.Notification {
   const note = new apn.Notification();
-  note.pushType = "alert";
-  note.topic    = bundleId;
-  note.priority = 10;
-  note.expiry   = expiryTimestamp();
-  note.alert    = {
-    title: notification.room_name ?? notification.room_id ?? "Message",
-    body:  buildBody(notification),
+  note.topic  = bundleId;
+  note.expiry = expiryTimestamp();
+  note.payload = {
+    notification: {
+      event_id: notification.event_id,
+      room_id: notification.room_id,
+      counts: notification.counts,
+    },
   };
-  note.badge   = notification.counts?.unread ?? 0;
-  note.sound   = "default";
-  note.payload = { room_id: notification.room_id };
+
+  if (notification.event_id) {
+    note.pushType        = "alert";
+    note.priority        = 10;
+    note.contentAvailable = true;
+    note.alert           = "New message";
+    note.sound           = "default";
+    note.badge           = notification.counts?.unread ?? 0;
+  } else {
+    note.pushType        = "background";
+    note.priority        = 5;
+    note.contentAvailable = true;
+    note.badge           = notification.counts?.unread ?? 0;
+  }
+
   return note;
 }
 
