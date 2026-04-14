@@ -25,7 +25,7 @@ const _runtime: ApnsRuntime | null = config.apns
           keyId:  config.apns.keyId,
           teamId: config.apns.teamId,
         },
-        production: true,
+        production: config.apns.production,
       }),
       bundleId: config.apns.bundleId,
     }

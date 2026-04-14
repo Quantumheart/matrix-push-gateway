@@ -17,6 +17,7 @@ export interface ApnsConfig {
   keyId:    string;
   teamId:   string;
   bundleId: string;
+  production: boolean;
 }
 
 function resolveApnsConfig(): ApnsConfig | null {
@@ -30,7 +31,9 @@ function resolveApnsConfig(): ApnsConfig | null {
     return null;
   }
 
-  return { keyPath, keyId, teamId, bundleId };
+  const production = (optionalEnv("APNS_PRODUCTION") ?? "true").toLowerCase() === "true";
+
+  return { keyPath, keyId, teamId, bundleId, production };
 }
 
 // ── Config ───────────────────────────────────────────────────────────
