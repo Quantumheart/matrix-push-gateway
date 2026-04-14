@@ -22,15 +22,15 @@ export const DeviceSchema = z.object({
 });
 
 export const NotificationSchema = z.object({
-  event_id: z.string().optional(),
-  room_id: z.string().optional(),
-  room_name: z.string().optional(),
-  room_alias: z.string().optional(),
+  event_id: z.string().nullish(),
+  room_id: z.string().nullish(),
+  room_name: z.string().nullish(),
+  room_alias: z.string().nullish(),
   prio: z.enum(["high", "low"]).default("high"),
-  sender: z.string().optional(),
-  sender_display_name: z.string().optional(),
-  type: z.string().optional(),
-  content: z.record(z.unknown()).optional(),
+  sender: z.string().nullish(),
+  sender_display_name: z.string().nullish(),
+  type: z.string().nullish(),
+  content: z.record(z.unknown()).nullish(),
   counts: CountsSchema.optional(),
   user_is_target: z.boolean().optional(),
   devices: z.array(DeviceSchema).min(1),
