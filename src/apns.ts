@@ -66,7 +66,7 @@ function buildAlertNotification(notification: Notification, bundleId: string): a
     note.priority         = 10;
     note.contentAvailable = true;
     note.alert            = {
-      title: notification.room_name ?? "Lattice",
+      title: notification.room_name ?? "Kohera",
       body:  notification.sender_display_name
         ? `${notification.sender_display_name}: New message`
         : "New message",
