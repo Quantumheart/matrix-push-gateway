@@ -1,6 +1,6 @@
 services:
   matrix-push-gateway:
-    build: .
+    image: ghcr.io/quantumheart/matrix-push-gateway:latest
     container_name: matrix-push-gateway
     restart: unless-stopped
     env_file: .env
@@ -8,7 +8,23 @@ services:
       - ./apns.p8:/app/apns.p8:ro
     networks:
       - matrix-internal
+      - matrix-homeserver
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: matrix-homeserver
+      traefik.http.services.matrix-push-gateway.loadbalancer.server.port: "7002"
+      traefik.http.routers.matrix-push-gateway.rule: "Host(`push.quantum-matrix.xyz`)"
+      traefik.http.routers.matrix-push-gateway.entrypoints: web-secure
+      traefik.http.routers.matrix-push-gateway.tls: "true"
+      traefik.http.routers.matrix-push-gateway.tls.certResolver: default
+      traefik.http.middlewares.matrix-push-gateway-rl.ratelimit.average: "50"
+      traefik.http.middlewares.matrix-push-gateway-rl.ratelimit.burst: "100"
+      traefik.http.middlewares.matrix-push-gateway-rl.ratelimit.period: "1s"
+      traefik.http.routers.matrix-push-gateway.middlewares: "matrix-push-gateway-rl"
 
 networks:
+  matrix-homeserver:
+    external: true
+    name: matrix-homeserver
   matrix-internal:
     name: matrix-internal

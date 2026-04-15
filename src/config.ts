@@ -47,6 +47,8 @@ export const config: {
   vapidPrivateKey: string;
   pushTtlSeconds: number;
   dedupTtlMs: number;
+  rateLimitPerPushkeyPerMin: number;
+  rateLimitBurst: number;
   apns: ApnsConfig | null;
 } = {
   /** Port the HTTP server listens on */
@@ -67,5 +69,18 @@ export const config: {
   /** How long (ms) to remember event IDs for duplicate suppression. Default 10 minutes. */
   dedupTtlMs: parseInt(process.env["DEDUP_TTL_MS"] ?? "600000", 10),
 
+  rateLimitPerPushkeyPerMin: positiveIntEnv("RATE_LIMIT_PER_PUSHKEY_PER_MIN", 60),
+  rateLimitBurst: positiveIntEnv("RATE_LIMIT_BURST", 20),
+
   apns,
 };
+
+function positiveIntEnv(name: string, fallback: number): number {
+  const raw = process.env[name];
+  if (raw === undefined || raw === "") return fallback;
+  const n = parseInt(raw, 10);
+  if (!Number.isFinite(n) || n <= 0) {
+    throw new Error(`Invalid ${name}: must be a positive integer, got "${raw}"`);
+  }
+  return n;
+}

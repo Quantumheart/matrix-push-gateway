@@ -4,6 +4,12 @@ import { getContentBody } from "./schema.js";
 import { config } from "./config.js";
 import { isDuplicate } from "./dedup.js";
 import { sendAlertPush, sendVoipPush } from "./apns.js";
+import { consume } from "./ratelimit.js";
+
+const rateLimitCfg = {
+  capacity: config.rateLimitBurst,
+  refillPerMs: config.rateLimitPerPushkeyPerMin / 60000,
+};
 
 // ── Payload builder ─────────────────────────────────────────────────
 
@@ -86,8 +92,13 @@ export async function sendToDevice(
     isDuplicate(`${notification.event_id}:${device.pushkey}`)
   ) {
     console.log(
-      `[push] duplicate event_id=${notification.event_id} pushkey=${device.pushkey} — skipping`,
+      `[push] duplicate event_id=${notification.event_id} pushkey=${device.pushkey.substring(0, 32)}… — skipping`,
     );
+    return { pushkey: device.pushkey, ok: true };
+  }
+
+  if (!consume(device.pushkey, rateLimitCfg)) {
+    console.warn(`[push] rate-limited pushkey=${device.pushkey.substring(0, 32)}…`);
     return { pushkey: device.pushkey, ok: true };
   }
 
