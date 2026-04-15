@@ -14,7 +14,6 @@ type ApnsResponses = Awaited<ReturnType<apn.Provider["send"]>>;
 
 interface ApnsRuntime {
   provider: apn.Provider;
-  bundleId: string;
 }
 
 const _runtime: ApnsRuntime | null = config.apns
@@ -27,7 +26,6 @@ const _runtime: ApnsRuntime | null = config.apns
         },
         production: config.apns.production,
       }),
-      bundleId: config.apns.bundleId,
     }
   : null;
 
@@ -49,9 +47,9 @@ function expiryTimestamp(): number {
   return Math.floor(Date.now() / 1000) + config.pushTtlSeconds;
 }
 
-function buildAlertNotification(notification: Notification, bundleId: string): apn.Notification {
+function buildAlertNotification(notification: Notification, topic: string): apn.Notification {
   const note = new apn.Notification();
-  note.topic  = bundleId;
+  note.topic  = topic;
   note.expiry = expiryTimestamp();
   note.payload = {
     notification: {
@@ -84,10 +82,10 @@ function buildAlertNotification(notification: Notification, bundleId: string): a
   return note;
 }
 
-function buildVoipNotification(notification: Notification, bundleId: string): apn.Notification {
+function buildVoipNotification(notification: Notification, topic: string): apn.Notification {
   const note = new apn.Notification();
   note.pushType = "voip";
-  note.topic    = `${bundleId}.voip`;
+  note.topic    = topic.endsWith(".voip") ? topic : `${topic}.voip`;
   note.priority = 10;
   note.expiry   = expiryTimestamp();
   note.payload  = {
@@ -124,7 +122,7 @@ function mapApnsResponse(responses: ApnsResponses, pushkey: string): SendResult 
 // ── Send ─────────────────────────────────────────────────────────────
 
 async function sendApnsPush(
-  build: (notification: Notification, bundleId: string) => apn.Notification,
+  build: (notification: Notification, topic: string) => apn.Notification,
   notification: Notification,
   device: Device,
 ): Promise<SendResult> {
@@ -132,7 +130,7 @@ async function sendApnsPush(
     return { pushkey: device.pushkey, ok: false, error: "APNs not configured" };
   }
   try {
-    const note      = build(notification, _runtime.bundleId);
+    const note      = build(notification, device.app_id);
     const responses = await _runtime.provider.send(note, device.pushkey);
     return mapApnsResponse(responses, device.pushkey);
   } catch (err) {
