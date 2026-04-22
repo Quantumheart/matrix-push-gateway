@@ -46,6 +46,7 @@ export const config: {
   vapidPublicKey: string;
   vapidPrivateKey: string;
   pushTtlSeconds: number;
+  apnsVoipTtlSeconds: number;
   dedupTtlMs: number;
   rateLimitPerPushkeyPerMin: number;
   rateLimitBurst: number;
@@ -65,6 +66,10 @@ export const config: {
 
   /** Time-to-live for push messages (seconds). Default 4 hours. */
   pushTtlSeconds: parseInt(process.env["PUSH_TTL_SECONDS"] ?? "14400", 10),
+
+  // Call signaling is ephemeral — stale VoIP pushes ring phones after the
+  // caller hung up. 30s matches typical CallKit offer-ring windows.
+  apnsVoipTtlSeconds: parseInt(process.env["APNS_VOIP_TTL_SECONDS"] ?? "30", 10),
 
   /** How long (ms) to remember event IDs for duplicate suppression. Default 10 minutes. */
   dedupTtlMs: parseInt(process.env["DEDUP_TTL_MS"] ?? "600000", 10),
