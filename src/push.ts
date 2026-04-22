@@ -1,6 +1,6 @@
 import webpush, { type PushSubscription } from "web-push";
 import type { Notification, Device, PushPath } from "./schema.js";
-import { getContentBody } from "./schema.js";
+import { CALL_MEMBER_TYPE, getContentBody } from "./schema.js";
 import { config } from "./config.js";
 import { isDuplicate } from "./dedup.js";
 import { sendAlertPush, sendVoipPush } from "./apns.js";
@@ -87,6 +87,19 @@ export async function sendToDevice(
   notification: Notification,
   device: Device,
 ): Promise<SendResult> {
+  const path = classifyPushkey(device.pushkey, device.app_id);
+
+  // VoIP pusher must never fire for non-call events — CallKit triggers on
+  // any payload with room_id. Alert-app_id device in the same fanout
+  // carries the user-visible notify. ok=true keeps the pushkey out of the
+  // rejected list (HS would un-register it).
+  if (path === "apns-voip" && notification.type !== CALL_MEMBER_TYPE) {
+    console.log(
+      `[push] voip gate drop type=${notification.type ?? "<none>"} pushkey=${device.pushkey.substring(0, 32)}…`,
+    );
+    return { pushkey: device.pushkey, ok: true };
+  }
+
   if (
     notification.event_id &&
     isDuplicate(`${notification.event_id}:${device.pushkey}`)
@@ -101,8 +114,6 @@ export async function sendToDevice(
     console.warn(`[push] rate-limited pushkey=${device.pushkey.substring(0, 32)}…`);
     return { pushkey: device.pushkey, ok: true };
   }
-
-  const path = classifyPushkey(device.pushkey, device.app_id);
 
   if (path === "apns-alert") return sendAlertPush(notification, device);
   if (path === "apns-voip")  return sendVoipPush(notification, device);

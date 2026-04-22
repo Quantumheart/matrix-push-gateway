@@ -1,7 +1,7 @@
 import apn from "@parse/node-apn";
 import { readFileSync } from "fs";
 import type { Notification, Device } from "./schema.js";
-import { getContentBody } from "./schema.js";
+import { CALL_MEMBER_TYPE, getContentBody } from "./schema.js";
 import { config } from "./config.js";
 import type { SendResult } from "./push.js";
 
@@ -82,15 +82,35 @@ function buildAlertNotification(notification: Notification, topic: string): apn.
   return note;
 }
 
-function buildVoipNotification(notification: Notification, topic: string): apn.Notification {
+export function buildVoipNotification(
+  notification: Notification,
+  topic: string,
+): apn.Notification {
   const note = new apn.Notification();
   note.pushType = "voip";
   note.topic    = topic.endsWith(".voip") ? topic : `${topic}.voip`;
   note.priority = 10;
-  note.expiry   = expiryTimestamp();
-  note.payload  = {
+  note.expiry   = Math.floor(Date.now() / 1000) + config.apnsVoipTtlSeconds;
+
+  const content = (notification.content ?? {}) as Record<string, unknown>;
+  const callId  = typeof content["call_id"] === "string" ? content["call_id"] : undefined;
+  const isVideo = content["io.kohera.is_video"] === true;
+
+  if (!callId) {
+    // Client push rule `.io.kohera.call_member` (issue #183 Phase 4) is
+    // expected to scope to join/update so leave events don't hit us. Warn
+    // here so a misconfigured rule (or leave-matching HS) is visible.
+    console.warn(
+      `[apns] voip push missing call_id event_id=${notification.event_id}`,
+    );
+  }
+
+  note.payload = {
     event_id:            notification.event_id,
+    event_type:          CALL_MEMBER_TYPE,
     room_id:             notification.room_id,
+    call_id:             callId,
+    is_video:            isVideo,
     sender_display_name: notification.sender_display_name,
   };
   return note;

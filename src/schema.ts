@@ -56,6 +56,11 @@ export type NotifyResponse = z.infer<typeof NotifyResponseSchema>;
 
 export type PushPath = "webpush" | "apns-alert" | "apns-voip";
 
+// MSC3401 1:1 call membership state event type. Only event type routed to
+// the VoIP pusher; everything else goes alert-only so CallKit doesn't fire
+// on encrypted message payloads. See issue #343.
+export const CALL_MEMBER_TYPE = "org.matrix.msc3401.call.member";
+
 // ── Helpers ──────────────────────────────────────────────────────────
 
 export function getContentBody(notification: Notification): string | undefined {
